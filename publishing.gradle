@@ -19,11 +19,13 @@ publishing {
     }
 }
 
-mavenPublishing {
-    if (findProperty("doNotSignRelease").toString().toBoolean()) {
-        println("Skipping release signing")
-    } else {
-        println("Signing release with gpg")
-        signAllPublications()
-    }
+// Apply conditional signing logic by setting the property at configuration time
+// This must happen before the mavenPublishing plugin reads the property
+if (findProperty("doNotSignRelease").toString().toBoolean()) {
+    println("Skipping release signing")
+    // Override the signAllPublications property to disable signing
+    ext.set("signAllPublications", "false")
+} else {
+    println("Signing release with gpg")
+    // signAllPublications is already set to true in gradle.properties
 }

@@ -217,6 +217,10 @@ abstract class BaseProcessor(val kspEnvironment: SymbolProcessorEnvironment? = n
         // for reuse.
         val memoizer = Memoizer(environment, logger)
 
+        // Clear resource scanner caches to avoid holding stale KSP element references.
+        // In KSP2, accessing elements from previous rounds triggers "PSI has changed since creation" errors.
+        resourceProcessor.clearCachesForNewRound()
+
         val deferredElements: List<XElement> = try {
             tryOrPrintError<List<XElement>?> {
                 timer.markStepCompleted("round initialization")
@@ -241,7 +245,8 @@ abstract class BaseProcessor(val kspEnvironment: SymbolProcessorEnvironment? = n
             // TODO: Potentially generate a single file per model to allow for an isolating processor
             kotlinExtensionWriter.generateExtensionsForModels(
                 generatedModels,
-                processorName
+                processorName,
+                memoizer
             )
             timer.markStepCompleted("generateKotlinExtensions")
         }

@@ -30,7 +30,10 @@ class ParisStyleAttributeInfo(
         fieldName = PARIS_STYLE_ATTR_NAME
         rootClass = modelInfo.generatedName.simpleName()
         this.packageName = packageName
-        setXType(modelInfo.memoizer.parisStyleType, modelInfo.memoizer)
+        // Use the memoizer parameter from the current round, not modelInfo.memoizer from round 1.
+        // modelInfo may have been created in a previous round and its memoizer holds stale KSP references.
+        // In KSP2, accessing types from previous rounds triggers "PSI has changed since creation" errors.
+        setXType(memoizer.parisStyleType, memoizer)
         styleBuilderClass = styleBuilderClassName
         ignoreRequireHashCode = true
         isGenerated = true

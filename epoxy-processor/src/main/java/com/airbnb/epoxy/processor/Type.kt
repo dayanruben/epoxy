@@ -11,10 +11,9 @@ import com.squareup.javapoet.WildcardTypeName
  * This helps to memoize the look up of a type's information.
  */
 class Type(val xType: XType, memoizer: Memoizer) {
-    val typeName: TypeName by lazy {
-        xType.typeNameWithWorkaround(memoizer)
-    }
-    val typeEnum: TypeEnum by lazy { TypeEnum.from(xType, typeName, memoizer) }
+    // Compute both typeName and typeEnum eagerly to avoid accessing stale xType in later rounds
+    val typeName: TypeName = xType.typeNameWithWorkaround(memoizer)
+    val typeEnum: TypeEnum = TypeEnum.from(xType, memoizer)
 
     enum class TypeEnum {
         StringOrCharSequence,
@@ -31,9 +30,10 @@ class Type(val xType: XType, memoizer: Memoizer) {
         Unknown;
 
         companion object {
-            fun from(xType: XType, typeName: TypeName, memoizer: Memoizer): TypeEnum {
+            fun from(xType: XType, memoizer: Memoizer): TypeEnum {
 
                 val nonNullType by lazy { xType.makeNonNullable() }
+                val typeName by lazy { xType.typeNameWithWorkaround(memoizer) }
 
                 return when {
                     xType.isInt() -> Int

@@ -124,9 +124,16 @@ class Memoizer(
 
     private val methodsReturningClassType = mutableMapOf<String, Set<MethodInfo>>()
 
-    fun getMethodsReturningClassType(classType: XType, memoizer: Memoizer): Set<MethodInfo> {
+    fun getMethodsReturningClassType(classQualifiedName: String, memoizer: Memoizer): Set<MethodInfo> {
+        // Re-resolve the type fresh using the current memoizer's environment.
+        // The caller may have been created in a previous round, and accessing properties
+        // of stale KSP types in KSP2 triggers "PSI has changed since creation" errors.
+        // By passing the qualified name as a String and resolving fresh each time,
+        // we ensure we always use current-round types.
+        val classType = memoizer.environment.requireType(classQualifiedName)
         val classElement = classType.typeElement!!
-        return methodsReturningClassType.getOrPut(classElement.qualifiedName) {
+
+        return methodsReturningClassType.getOrPut(classQualifiedName) {
 
             val methodInfos: List<MethodInfo> =
                 classElement.getDeclaredMethods().mapNotNull { subElement ->
@@ -164,8 +171,9 @@ class Memoizer(
             // Note: Adding super type methods second preserves any overloads in the base
             // type that may have changes (ie, a new return type or annotation), since
             // Set.plus only adds items that don't already exist.
-            val superClassType = classElement.superClass ?: return@getOrPut emptySet()
-            methodInfos.toSet() + getMethodsReturningClassType(superClassType, memoizer)
+            val superClassElement = classElement.superClass?.typeElement
+                ?: return@getOrPut emptySet()
+            methodInfos.toSet() + getMethodsReturningClassType(superClassElement.qualifiedName, memoizer)
         }
     }
 
@@ -380,12 +388,12 @@ class Memoizer(
     private val implementsModelCollectorMap = mutableMapOf<String, Boolean>()
     fun implementsModelCollector(classElement: XTypeElement): Boolean {
         return implementsModelCollectorMap.getOrPut(classElement.qualifiedName) {
-            classElement.getSuperInterfaceElements().any {
-                it.type.isEpoxyModelCollector(this)
-            } || classElement.superClass?.typeElement?.let { superClassElement ->
-                // Also check the class hierarchy
-                implementsModelCollector(superClassElement)
-            } ?: false
+                classElement.getSuperInterfaceElements().any {
+                    it.type.isEpoxyModelCollector(this)
+                } || classElement.superClass?.typeElement?.let { superClassElement ->
+                    // Also check the class hierarchy
+                    implementsModelCollector(superClassElement)
+                } ?: false
         }
     }
 

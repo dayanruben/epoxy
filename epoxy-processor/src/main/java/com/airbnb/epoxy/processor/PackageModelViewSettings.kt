@@ -1,7 +1,6 @@
 package com.airbnb.epoxy.processor
 
 import androidx.room.compiler.processing.XAnnotation
-import androidx.room.compiler.processing.XType
 import androidx.room.compiler.processing.XTypeElement
 import androidx.room.compiler.processing.isVoid
 import androidx.room.compiler.processing.isVoidObject
@@ -29,14 +28,15 @@ class PackageModelViewSettings(
         annotation.getAsEnum("disableGenerateReset").name
     ).toBoolean()
 
-    val defaultBaseModel: XType? by lazy {
-        annotation.getAsType("defaultBaseModelClass")
-            .takeIf {
-                // The default value of the annotation parameter is Void.class to signal that the user
-                // does not want to provide a custom base class
-                !it.isVoid() && !it.isVoidObject()
-            }
-    }
+    // Store the qualified name as a String instead of XType to avoid holding stale KSP references.
+    // In KSP2, accessing XType from previous rounds triggers "PSI has changed since creation" errors.
+    // The type must be resolved fresh each round using the current environment.
+    val defaultBaseModelClassName: String? = annotation.getAsType("defaultBaseModelClass")
+        .takeIf {
+            // The default value of the annotation parameter is Void.class to signal that the user
+            // does not want to provide a custom base class
+            !it.isVoid() && !it.isVoidObject()
+        }?.typeElement?.qualifiedName
 
     fun getNameForView(viewElement: XTypeElement): ResourceValue {
         val viewName = Utils.toSnakeCase(viewElement.name)

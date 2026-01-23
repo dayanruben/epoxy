@@ -54,10 +54,10 @@ class ModelViewInfo(
             superClassElement.name != ClassNames.EPOXY_MODEL_UNTYPED.simpleName()
         ) {
             // If the view has a custom base model then we copy any custom constructors on it
-            constructors.addAll(getClassConstructors(superClassElement))
+            constructors.addAll(getClassConstructors(safeSuperClassElement(memoizer)))
         }
 
-        collectMethodsReturningClassType(superClassElement)
+        collectMethodsReturningClassType(safeSuperClassElement(memoizer))
 
         // The bound type is the type of this view
         modelType = viewElement.type.typeName
@@ -91,7 +91,7 @@ class ModelViewInfo(
     private fun lookUpSuperClassElement(): XTypeElement {
         val classToExtend = viewAnnotation.getAsType("baseModelClass")
             ?.takeIf { !it.isVoidObject() && !it.isVoid() }
-            ?: configManager.getDefaultBaseModel(viewElement)
+            ?: configManager.getDefaultBaseModel(viewElement, environment)
             ?: return memoizer.epoxyModelClassElementUntyped
 
         val superElement =
@@ -182,5 +182,5 @@ class ModelViewInfo(
         return element.parameters.singleOrNull()?.hasDefaultValue == true
     }
 
-    override fun additionalOriginatingElements() = listOf(viewElement)
+    override fun additionalOriginatingElements(currentMemoizer: Memoizer) = listOf(viewElement)
 }

@@ -12,7 +12,9 @@ internal class DataBindingAttributeInfo(
 
     init {
         fieldName = removeSetPrefix(setterMethod.name)
-        setXType(setterMethod.parameters[0].type, modelInfo.memoizer)
+        // Use the memoizer parameter from the current round, not modelInfo.memoizer.
+        // modelInfo may have been created in a previous round and its memoizer holds stale KSP references.
+        setXType(setterMethod.parameters[0].type, memoizer)
         rootClass = modelInfo.generatedName.simpleName()
         packageName = modelInfo.generatedName.packageName()
         useInHash = !modelInfo.enableDoNotHash ||

@@ -122,4 +122,13 @@ abstract class ResourceScanner(val environmentProvider: () -> XProcessingEnv) {
     }
 
     abstract fun getImports(classElement: XTypeElement): List<String>
+
+    /**
+     * Clears any caches that may hold references to KSP elements.
+     * This must be called at the start of each round to avoid accessing stale PSI elements
+     * in KSP2, which would trigger "PSI has changed since creation" errors.
+     */
+    open fun clearCachesForNewRound() {
+        // Default implementation does nothing. KspResourceScanner overrides this to clear its cache.
+    }
 }

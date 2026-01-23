@@ -93,6 +93,6 @@ internal class DataBindingModelInfo(
         )
     }
 
-    override fun additionalOriginatingElements() =
+    override fun additionalOriginatingElements(currentMemoizer: Memoizer) =
         listOfNotNull(annotatedElement, dataBindingClassElement)
 }

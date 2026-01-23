@@ -18,12 +18,13 @@ internal class ModelViewWriter(
 
     fun writeModels(
         models: List<ModelViewInfo>,
-        originatingConfigElements: List<XElement>
+        originatingConfigElements: List<XElement>,
+        memoizer: Memoizer
     ) {
         models.forEach("Write model view classes") { modelInfo ->
             modelWriter.generateClassForModel(
                 modelInfo,
-                originatingElements = originatingConfigElements + modelInfo.originatingElements(),
+                originatingElements = originatingConfigElements + modelInfo.originatingElements(memoizer),
                 builderHooks = generateBuilderHook(modelInfo)
             )
         }

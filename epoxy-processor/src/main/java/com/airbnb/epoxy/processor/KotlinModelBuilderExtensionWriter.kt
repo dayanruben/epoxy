@@ -20,7 +20,8 @@ internal class KotlinModelBuilderExtensionWriter(
 
     fun generateExtensionsForModels(
         generatedModels: List<GeneratedModelInfo>,
-        processorName: String
+        processorName: String,
+        memoizer: Memoizer
     ) {
         generatedModels
             .filter { it.shouldGenerateModel }
@@ -29,7 +30,8 @@ internal class KotlinModelBuilderExtensionWriter(
                 buildExtensionFile(
                     packageName,
                     models,
-                    processorName
+                    processorName,
+                    memoizer
                 )
             }.forEach("writeExtensionsForModels", parallel = false) {
                 // Cannot be done in parallel since filer is not thread safe
@@ -40,7 +42,8 @@ internal class KotlinModelBuilderExtensionWriter(
     private fun buildExtensionFile(
         packageName: String,
         models: List<GeneratedModelInfo>,
-        processorName: String
+        processorName: String,
+        memoizer: Memoizer
     ): FileSpec {
         val fileBuilder = FileSpec.builder(
             packageName,
@@ -49,10 +52,10 @@ internal class KotlinModelBuilderExtensionWriter(
 
         models.map {
             if (it.constructors.isEmpty()) {
-                listOf(buildExtensionsForModel(it, null))
+                listOf(buildExtensionsForModel(it, null, memoizer))
             } else {
                 it.constructors.map { constructor ->
-                    buildExtensionsForModel(it, constructor)
+                    buildExtensionsForModel(it, constructor, memoizer)
                 }
             }
         }
@@ -76,7 +79,8 @@ internal class KotlinModelBuilderExtensionWriter(
 
     private fun buildExtensionsForModel(
         model: GeneratedModelInfo,
-        constructor: GeneratedModelInfo.ConstructorInfo?
+        constructor: GeneratedModelInfo.ConstructorInfo?,
+        memoizer: Memoizer
     ): FunSpec {
         val constructorIsNotPublic =
             constructor != null && Modifier.PUBLIC !in constructor.modifiers
@@ -118,7 +122,7 @@ internal class KotlinModelBuilderExtensionWriter(
             endControlFlow()
             addStatement(")")
 
-            model.originatingElements().forEach {
+            model.originatingElements(memoizer).forEach {
                 addOriginatingElement(it)
             }
             return build()

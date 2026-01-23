@@ -37,6 +37,12 @@ class KspResourceScanner(environmentProvider: () -> XProcessingEnv) :
     private val cache =
         mutableMapOf<Pair<KClass<out Annotation>, XElement>, List<AnnotationWithReferenceValue>>()
 
+    override fun clearCachesForNewRound() {
+        // Clear the cache to avoid holding references to stale XElement objects from previous rounds.
+        // In KSP2, accessing elements from previous rounds triggers "PSI has changed since creation" errors.
+        cache.clear()
+    }
+
     override fun getResourceValueListInternal(
         annotation: KClass<out Annotation>,
         element: XElement,

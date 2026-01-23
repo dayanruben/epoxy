@@ -163,7 +163,7 @@ class DataBindingProcessor @JvmOverloads constructor(
             bindingModelInfo.parseDataBindingClass(logger) ?: return@filter false
             createModelWriter(memoizer).generateClassForModel(
                 bindingModelInfo,
-                originatingElements = bindingModelInfo.originatingElements()
+                originatingElements = bindingModelInfo.originatingElements(memoizer)
             )
             true
         }.also { writtenModels ->

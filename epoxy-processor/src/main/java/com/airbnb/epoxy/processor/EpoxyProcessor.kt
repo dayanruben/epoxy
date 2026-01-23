@@ -106,7 +106,7 @@ class EpoxyProcessor @JvmOverloads constructor(
         val styleableModels = modelInfos
             .filterIsInstance<BasicGeneratedModelInfo>()
             .filter { modelInfo ->
-                modelInfo.superClassElement.getAnnotation(EpoxyModelClass::class)?.getAsInt("layout") == 0 &&
+                modelInfo.safeSuperClassElement(memoizer).getAnnotation(EpoxyModelClass::class)?.getAsInt("layout") == 0 &&
                     modelInfo.boundObjectTypeElement?.hasStyleableAnnotation() == true
             }
         timer.markStepCompleted("check for styleable models")
@@ -136,7 +136,7 @@ class EpoxyProcessor @JvmOverloads constructor(
     private fun writeModel(modelInfo: GeneratedModelInfo, memoizer: Memoizer) {
         createModelWriter(memoizer).generateClassForModel(
             modelInfo,
-            originatingElements = modelInfo.originatingElements()
+            originatingElements = modelInfo.originatingElements(memoizer)
         )
     }
 

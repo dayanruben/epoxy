@@ -224,8 +224,14 @@ class ConfigManager internal constructor(
         )
     }
 
-    fun getDefaultBaseModel(viewElement: XTypeElement): XType? {
-        return getModelViewConfig(viewElement)?.defaultBaseModel
+    fun getDefaultBaseModel(viewElement: XTypeElement, currentEnvironment: XProcessingEnv): XType? {
+        val className = getModelViewConfig(viewElement)?.defaultBaseModelClassName
+            ?: return null
+        // Resolve the type fresh each round using the current environment to avoid
+        // accessing stale KSP elements from previous rounds.
+        // IMPORTANT: Use the currentEnvironment parameter, not the instance field,
+        // since the instance field was captured at ConfigManager creation time (round 1).
+        return currentEnvironment.findType(className)
     }
 
     fun includeAlternateLayoutsForViews(viewElement: XTypeElement): Boolean {

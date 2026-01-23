@@ -612,10 +612,10 @@ class ModelViewProcessor @JvmOverloads constructor(
         modelClassMap.values.forEach { modelViewInfo ->
             // Skip generated model super classes since it will already contain all of the functions
             // necessary for included attributes, and duplicating them is a waste.
-            if (modelViewInfo.isSuperClassAlsoGenerated) return@forEach
+            if (modelViewInfo.isSuperClassAlsoGenerated(memoizer)) return@forEach
 
             memoizer.getInheritedEpoxyAttributes(
-                modelViewInfo.superClassElement.type,
+                modelViewInfo.safeSuperClassElement(memoizer).type,
                 modelViewInfo.generatedName.packageName(),
                 logger
             ).let { modelViewInfo.addAttributes(it) }
@@ -690,7 +690,7 @@ class ModelViewProcessor @JvmOverloads constructor(
 
         val modelWriter = createModelWriter(memoizer)
         ModelViewWriter(modelWriter, this)
-            .writeModels(modelsToWrite, originatingConfigElements())
+            .writeModels(modelsToWrite, originatingConfigElements(), memoizer)
 
         if (styleableModelsToWrite.isEmpty()) {
             // Make sure all models have been processed and written before we generate interface information

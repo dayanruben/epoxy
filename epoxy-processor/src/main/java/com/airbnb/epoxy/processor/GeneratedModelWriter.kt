@@ -3,7 +3,6 @@ package com.airbnb.epoxy.processor
 import androidx.annotation.LayoutRes
 import androidx.room.compiler.processing.XElement
 import androidx.room.compiler.processing.XFiler
-import androidx.room.compiler.processing.XMethodElement
 import androidx.room.compiler.processing.XProcessingEnv
 import androidx.room.compiler.processing.XTypeElement
 import androidx.room.compiler.processing.addOriginatingElement
@@ -161,7 +160,7 @@ class GeneratedModelWriter(
 
             builderHooks?.beforeFinalBuild(this)
 
-            addSuperinterface(modelInterfaceWriter.writeInterface(info, this.build().methodSpecs))
+            addSuperinterface(modelInterfaceWriter.writeInterface(info, this.build().methodSpecs, memoizer))
 
             originatingElements.forEach {
                 addOriginatingElement(it)
@@ -608,7 +607,7 @@ class GeneratedModelWriter(
             addParameter(boundObjectParam)
             addParameter(TypeName.INT, "position")
 
-            if (modelInfo.isSuperClassAlsoGenerated) {
+            if (modelInfo.isSuperClassAlsoGenerated(memoizer)) {
                 // If a super class is also generated we need to make sure to call through to these
                 // methods on it as well. This is particularly important for EpoxyModelGroup.
                 addStatement("super.handlePostBind(\$L, position)", boundObjectParam.name)
@@ -836,8 +835,8 @@ class GeneratedModelWriter(
         // bind!!! So we mustn't do that. So, we only call the super diff binding if we think
         // it's a custom implementation.
         if (modelImplementsBindWithDiff(
-                classInfo.superClassElement,
-                memoizer.baseBindWithDiffMethod
+                classInfo.safeSuperClassElement(memoizer),
+                memoizer
             )
         ) {
             addStatement(
@@ -870,7 +869,7 @@ class GeneratedModelWriter(
             .addParameter(boundObjectParam)
             .addParameter(TypeName.INT, positionParamName, Modifier.FINAL)
 
-        if (modelInfo.isSuperClassAlsoGenerated) {
+        if (modelInfo.isSuperClassAlsoGenerated(memoizer)) {
             // If a super class is also generated we need to make sure to call through to these
             // methods on it as well. This is particularly important for EpoxyModelGroup.
             preBindBuilder.addStatement(
@@ -1103,7 +1102,7 @@ class GeneratedModelWriter(
         methods: MutableList<MethodSpec>
     ) {
 
-        val originalClassElement = modelClassInfo.superClassElement
+        val originalClassElement = modelClassInfo.safeSuperClassElement(memoizer)
         if (!originalClassElement.type.isEpoxyModelWithHolder(memoizer)) {
             return
         }
@@ -1179,7 +1178,7 @@ class GeneratedModelWriter(
             return modelInfo.getLayoutResource(resourceProcessor)
         }
 
-        val superClassElement = modelInfo.superClassElement
+        val superClassElement = modelInfo.safeSuperClassElement(memoizer)
         if (implementsMethod(superClassElement, buildDefaultLayoutMethodBase(), environment)) {
             return null
         }
@@ -1206,7 +1205,7 @@ class GeneratedModelWriter(
      * variables that changed.
      */
     private fun generateDataBindingMethodsIfNeeded(info: GeneratedModelInfo): Iterable<MethodSpec> {
-        if (!info.superClassElement.type.isDataBindingEpoxyModel(memoizer)) {
+        if (!info.safeSuperClassElement(memoizer).type.isDataBindingEpoxyModel(memoizer)) {
             return emptyList()
         }
 
@@ -1222,7 +1221,7 @@ class GeneratedModelWriter(
 
         // If the base method is already implemented don't bother checking for the payload method
         if (implementsMethod(
-                info.superClassElement,
+                info.safeSuperClassElement(memoizer),
                 bindVariablesMethod,
                 environment
             )
@@ -1233,7 +1232,7 @@ class GeneratedModelWriter(
         val generatedModelClass = info.generatedName
 
         val moduleName = (info as? DataBindingModelInfo)?.moduleName
-            ?: dataBindingModuleLookup.getModuleName(info.superClassElement)
+            ?: dataBindingModuleLookup.getModuleName(info.safeSuperClassElement(memoizer))
 
         val baseMethodBuilder = bindVariablesMethod.toBuilder()
 
@@ -2102,14 +2101,20 @@ class GeneratedModelWriter(
 
         fun modelImplementsBindWithDiff(
             clazz: XTypeElement,
-            baseBindWithDiffMethod: XMethodElement
+            currentMemoizer: Memoizer
         ): Boolean {
-            return clazz.getAllMethods().any {
+            // Re-resolve the type element using the current memoizer's environment to avoid
+            // accessing stale KSP elements from previous rounds. In KSP2, this triggers
+            // "PSI has changed since creation" errors.
+            val freshClazz = currentMemoizer.environment.requireType(clazz.qualifiedName).typeElement!!
+            val baseBindWithDiffMethod = currentMemoizer.baseBindWithDiffMethod
+
+            return freshClazz.getAllMethods().any {
                 it.name == baseBindWithDiffMethod.name &&
                     !it.isAbstract() &&
                     it.overrides(
                         other = baseBindWithDiffMethod,
-                        owner = clazz
+                        owner = freshClazz
                     )
             }
         }
